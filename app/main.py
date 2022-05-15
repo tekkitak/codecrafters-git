@@ -34,7 +34,7 @@ def main():
                     next_blob = ''.join(format(x, '02x') for x in decompressed.split(b"\x00")[2])
                     print(f"{data[0]} blob {next_blob}\t{data[1]}")        
                 elif blob_type == b"blob":
-                    print(decompressed.split(b"\x00")[1].decode("utf-8")[:-1])
+                    print(decompressed.split(b"\x00")[1].decode("utf-8"), end="")
 
         else: 
             RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
