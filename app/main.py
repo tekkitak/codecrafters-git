@@ -1,6 +1,6 @@
-from ast import Try
-from distutils.command.build import build
+from dataclasses import dataclass
 from hashlib import sha1
+from string import hexdigits
 import sys
 import os
 import zlib
@@ -12,12 +12,53 @@ def ReadZlib(filepath):
         d = zlib.decompressobj()
         return d.decompress(data)
     
-def GetHash(data):
+def GetHash(data, hash_ret="hex"):
     if type(data) != str:
         data = data.decode("utf-8")
-
     header = f"blob {len(data.encode('utf-8'))}\0{data}"
-    return sha1(header.encode()).hexdigest()
+    if hash_ret == "hex":
+        return sha1(header.encode()).hexdigest()
+    elif hash_ret == "bin":
+        return sha1(header.encode()).digest()
+    else:
+        raise ValueError("Invalid hash_ret value")
+
+def CreateTree(path):
+    tdata = b""
+    file_list = os.listdir(path)
+    file_list.sort()
+    for file in file_list:
+        if file == ".git": 
+            continue
+        elif os.path.isdir(os.path.join(path, file)):
+            tdata += b"40000 "
+            tdata += os.path.basename(os.path.join(path, file)).encode()
+            tdata += b"\0"
+            tdata += CreateTree(os.path.join(path, file))
+        elif os.path.isfile(os.path.join(path, file)):
+            if file == "your_git.sh": tdata += b"100755 "
+            else:
+                tdata += b"100644 "
+            tdata += os.path.basename(os.path.join(path, file)).encode()
+            tdata += b"\0"
+            tdata += GetHash(open(os.path.join(path, file), "r").read(), "bin")
+        elif os.path.islink(os.path.join(path, file)):
+            tdata += b"12000 "
+            tdata += os.path.basename(os.path.join(path, file)).encode()
+            tdata += b"\0"
+            tdata += b"kok"
+        else:
+            print(f"Unknown file type: {file}")
+            RuntimeError("Unknown file type")
+    tdata = tdata.rstrip(b"\0")
+    tdata = b'tree ' + str(len(tdata)).encode() + b'\0' + tdata
+
+    hash = sha1(tdata).hexdigest()
+    if not os.path.exists(".git/objects/" + hash[:2]):
+        os.mkdir(".git/objects/" + hash[:2])
+    with open(".git/objects/" + hash[:2] + "/" + hash[2:], "wb") as f:
+        f.write(zlib.compress(tdata))
+    return sha1(tdata).digest()
 
 def main():
     command = sys.argv[1]
@@ -38,7 +79,8 @@ def main():
                     RuntimeError(f"Object '{sha}' does not exist")
                 else:
                     print(f"Object '{sha}' exists")
-                    print(f"Hash:\n {ReadZlib(filepath)}", "\n\n")
+                    data = ReadZlib(filepath)
+                    print(f"Hash: {sha1(data).hexdigest()}\nData: {data}", "\n\n")
 
     elif command == "cat-file":
         if sys.argv[2] == "-p" and len(sys.argv) > 2:
@@ -92,6 +134,9 @@ def main():
         else:
             print(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
             RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
+
+    elif command == "write-tree":
+        print(''.join(format(x, '02x') for x in CreateTree(".")))            
 
     elif command == "hash-object":
         if sys.argv[2][0] == "-" and len(sys.argv) > 2:
