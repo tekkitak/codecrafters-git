@@ -1,4 +1,5 @@
 from distutils.command.build import build
+from hashlib import sha1
 import sys
 import os
 import zlib
@@ -9,6 +10,13 @@ def ReadZlib(filepath):
         d = zlib.decompressobj()
         return d.decompress(data)
     
+def GetHash(data):
+    if type(data) != str:
+        data = data.decode("utf-8")
+
+    header = f"blob {len(data.encode('utf-8'))}\0{data}"
+    return sha1(header.encode()).hexdigest()
+
 def main():
     command = sys.argv[1]
     if command == "init":
@@ -28,6 +36,7 @@ def main():
             else:
                 decompressed = ReadZlib(filepath)
                 parts = decompressed.split(b"\x00")
+                print(filepath, "\n", decompressed, "\n\n")
                 blob_type = parts[0].split(b" ")[0]
                 if blob_type == b"tree":
                     data = [str(item)[2:-1] for item in decompressed.split(b"\x00")[1].split(b" ")]
@@ -35,10 +44,30 @@ def main():
                     print(f"{data[0]} blob {next_blob}\t{data[1]}")        
                 elif blob_type == b"blob":
                     print(decompressed.split(b"\x00")[1].decode("utf-8"), end="")
+                else:
+                    print(f"Unknown blob type '{blob_type.decode('utf-8')}'")
+                    RuntimeError(f"Unknown blob type '{blob_type.decode('utf-8')}'")
 
         else: 
             RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
-
+    
+    elif command == "hash-object":
+        if sys.argv[2][0] == "-" and len(sys.argv) > 2:
+            if sys.argv[2][1:] == "w":
+                hash = GetHash(open(sys.argv[3], "rb").read())
+                print(hash)
+                if not os.path.exists(f".git/objects/{hash[:2]}"):
+                    os.mkdir(f".git/objects/{hash[:2]}")
+    
+                with open(sys.argv[3], "r") as file:
+                    data = file.read()
+                    with open(f".git/objects/{hash[:2]}/{hash[2:]}", "wb") as new:
+                        new.write(zlib.compress(f"blob {len(data.encode('utf-8'))}\0{data}".encode()))
+            else:
+                print(f"Paramaeter flag '{sys.argv[2]}' doesnt exist for 'hash-object'")
+                RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for 'hash-object'")
+        else:
+            print(GetHash(open(sys.argv[2], "r").read()))
     else:
         raise RuntimeError(f"Unknown command '{command}'")
 
