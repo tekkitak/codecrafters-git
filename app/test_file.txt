@@ -1,1 +1,0 @@
-"This is test lalala \x00\x000aasdasf LOLOLO" 
