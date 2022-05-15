@@ -22,11 +22,13 @@ def main():
     elif command == "cat-file":
         if sys.argv[2] == "-p" and len(sys.argv) > 2:
             filepath = f".git/objects/{sys.argv[3][:2]}/{sys.argv[3][2:]}"
+            print(filepath)
             if not os.path.exists(filepath):
                 print(f"Blob '{sys.argv[3]}' does not exist")
                 RuntimeError(f"Blob '{sys.argv[3]}' does not exist")
             else:
                 decompressed = ReadZlib(filepath)
+                print("decompressed: ", decompressed)
                 data = [str(item)[2:-1] for item in decompressed.split(b"\x00")[1].split(b" ")]
                 next_blob = ''.join(format(x, '02x') for x in decompressed.split(b"\x00")[2])
                 print(f"{data[0]} blob {next_blob}\t{data[1]}")                
