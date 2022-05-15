@@ -22,7 +22,6 @@ def main():
     elif command == "cat-file":
         if sys.argv[2] == "-p" and len(sys.argv) > 2:
             filepath = f".git/objects/{sys.argv[3][:2]}/{sys.argv[3][2:]}"
-            print("file: ", filepath, "\n")
             if not os.path.exists(filepath):
                 print(f"Blob '{sys.argv[3]}' does not exist")
                 RuntimeError(f"Blob '{sys.argv[3]}' does not exist")
