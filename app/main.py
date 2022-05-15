@@ -36,7 +36,7 @@ def main():
             else:
                 decompressed = ReadZlib(filepath)
                 parts = decompressed.split(b"\x00")
-                print(filepath, "\n", decompressed, "\n\n")
+                #print(filepath, "\n", decompressed, "\n\n")
                 blob_type = parts[0].split(b" ")[0]
                 if blob_type == b"tree":
                     data = [str(item)[2:-1] for item in decompressed.split(b"\x00")[1].split(b" ")]
