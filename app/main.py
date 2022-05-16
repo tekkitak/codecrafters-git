@@ -117,12 +117,12 @@ def main():
                 print(f"Hash: {sha1(data).hexdigest()}\nData: {data}", "\n\n")
 
     elif args.cmd == "cat-file":
-        filepath = f".git/objects/{args.SHA[:2]}/{args.SHA[3][2:]}"
+        filepath = f".git/objects/{args.SHA[:2]}/{args.SHA[2:]}"
         if not os.path.exists(filepath):
             print(f"Object '{args.SHA}' does not exist")
             RuntimeError(f"Object '{args.SHA}' does not exist")
         else:
-            print(filepath)
+            print(filepath, args.SHA)
             decompressed = ReadZlib(filepath)
             parts = decompressed.split(b"\x00")
             blob_type = parts[0].split(b" ")[0]
