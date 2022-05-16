@@ -143,9 +143,6 @@ def main():
         tdata = b"tree " + args.tree.encode() + b"\n"
         if args.parents:
             for parent in args.parents:
-                if not os.path.exists(f".git/refs/{parent[:2]}/{parent[2:]}"):
-                    print(f"Object '{parent}' does not exist")
-                    RuntimeError(f"Object '{parent}' does not exist")
                 tdata += f"parent {parent}\n".encode()
         tdata += b"author penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n"
         tdata += b"committer penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n\n"
