@@ -143,7 +143,7 @@ def main():
         tdata = b"tree " + args.tree.encode() + b"\n"
         if args.parents:
             for parent in args.parents:
-                if not os.path.exists(f".git/refs/{parent}"):
+                if not os.path.exists(f".git/refs/{parent[:2]}/{parent[2:]}"):
                     print(f"Object '{parent}' does not exist")
                     RuntimeError(f"Object '{parent}' does not exist")
                 tdata += f"parent {parent}\n".encode()
