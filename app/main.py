@@ -1,10 +1,42 @@
+from ast import arg, parse
 from dataclasses import dataclass
 from hashlib import sha1
 from string import hexdigits
 import sys
 import os
 import zlib
+import argparse as ap
 
+def Parser():
+    parser = ap.ArgumentParser(description="PyGit")
+    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+
+    subparsers = parser.add_subparsers(title="Command", required=1, metavar="command", dest="cmd")
+
+    cat_file_parser = subparsers.add_parser("cat-file", help="Prints the contents of a blob object")
+    cat_file_parser.add_argument("-p", dest="SHA", required=True,type=str, help="Object to print")
+
+    commit_tree_parser = subparsers.add_parser("commit-tree", help="Creates a commit object")
+    commit_tree_parser.add_argument("tree", metavar="commit-tree",  type=str, help="Tree SHA")
+    commit_tree_parser.add_argument("-m", dest="msg", metavar="<MESSAGE>", required=True, type=str, help="Message")
+    commit_tree_parser.add_argument("-p", metavar="<COMMIT_SHA>",type=str, help="Parent commit", dest="parents", nargs="*")
+
+    debug_sha_parser = subparsers.add_parser("debug-sha", help="Prints data from SHA(s)")
+    debug_sha_parser.add_argument("SHA", metavar="SHA", type=str, help="SHA to print", nargs="+")
+
+    ls_tree_parser = subparsers.add_parser("ls-tree", help="Prints the contents of a tree object")
+    ls_tree_parser.add_argument("--name-only", action='store_true', required=True, help="Only print the names of the objects")
+    ls_tree_parser.add_argument("SHA", metavar="<TREE SHA>", type=str, help="Tree SHA")
+
+    init_parser = subparsers.add_parser("init", help="Initializes a new git repository")
+
+    hash_object_parser = subparsers.add_parser("hash-object", help="Hashes a file")
+    hash_object_parser.add_argument("-w", action='store_true', help="Write the object into the object store")
+    hash_object_parser.add_argument("file", metavar="<FILE>", type=open, help="File to hash")
+
+    write_tree_parser = subparsers.add_parser("write-tree", help="Creates a tree object")
+
+    return parser
 
 def ReadZlib(filepath):
     with open(filepath, "rb") as compressed:
@@ -61,8 +93,11 @@ def CreateTree(path):
     return sha1(tdata).digest()
 
 def main():
-    command = sys.argv[1]
-    if command == "init":
+    parser = Parser()
+    args = parser.parse_args()
+    if args.debug: print(args)
+    
+    if args.cmd == "init":
         os.mkdir(".git")
         os.mkdir(".git/objects")
         os.mkdir(".git/refs")
@@ -70,54 +105,53 @@ def main():
             f.write("ref: refs/heads/master\n")
         print("Initialized git directory")
 
-    elif command == "debug-sha":
-        if len(sys.argv) > 1:
-            for sha in sys.argv[2:]:
-                filepath = f".git/objects/{sha[:2]}/{sha[2:]}"
-                if not os.path.exists(filepath):
-                    print(f"Object '{sha}' does not exist")
-                    RuntimeError(f"Object '{sha}' does not exist")
-                else:
-                    print(f"Object '{sha}' exists")
-                    data = ReadZlib(filepath)
-                    print(f"Hash: {sha1(data).hexdigest()}\nData: {data}", "\n\n")
-
-    elif command == "cat-file":
-        if sys.argv[2] == "-p" and len(sys.argv) > 2:
-            filepath = f".git/objects/{sys.argv[3][:2]}/{sys.argv[3][2:]}"
+    elif args.cmd == "debug-sha":
+        for sha in args.SHA:
+            filepath = f".git/objects/{sha[:2]}/{sha[2:]}"
             if not os.path.exists(filepath):
-                print(f"Object '{sys.argv[3]}' does not exist")
-                RuntimeError(f"Object '{sys.argv[3]}' does not exist")
+                print(f"Object '{sha}' does not exist")
+                RuntimeError(f"Object '{sha}' does not exist")
             else:
-                decompressed = ReadZlib(filepath)
-                parts = decompressed.split(b"\x00")
-                blob_type = parts[0].split(b" ")[0]
-                if blob_type == b"tree":
-                    data = [str(item)[2:-1] for item in decompressed.split(b"\x00")[1].split(b" ")]
-                    next_blob = ''.join(format(x, '02x') for x in decompressed.split(b"\x00")[2])
-                    print(f"{data[0]} blob {next_blob}\t{data[1]}")        
-                elif blob_type == b"blob":
-                    print(decompressed.split(b"\x00")[1].decode("utf-8"), end="")
-                else:
-                    print(f"Unknown blob type '{blob_type.decode('utf-8')}'")
-                    RuntimeError(f"Unknown blob type '{blob_type.decode('utf-8')}'")
+                print(f"Object '{sha}' exists")
+                data = ReadZlib(filepath)
+                print(f"Hash: {sha1(data).hexdigest()}\nData: {data}", "\n\n")
 
-        else: 
-            RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
-    
-    elif command == "ls-tree":
+    elif args.cmd == "cat-file":
+        filepath = f".git/objects/{args.SHA[:2]}/{args.SHA[3][2:]}"
+        if not os.path.exists(filepath):
+            print(f"Object '{args.SHA}' does not exist")
+            RuntimeError(f"Object '{args.SHA}' does not exist")
+        else:
+            decompressed = ReadZlib(filepath)
+            parts = decompressed.split(b"\x00")
+            blob_type = parts[0].split(b" ")[0]
+            if blob_type == b"tree":
+                data = [str(item)[2:-1] for item in decompressed.split(b"\x00")[1].split(b" ")]
+                next_blob = ''.join(format(x, '02x') for x in decompressed.split(b"\x00")[2])
+                print(f"{data[0]} blob {next_blob}\t{data[1]}")        
+            elif blob_type == b"blob":
+                print(decompressed.split(b"\x00")[1].decode("utf-8"), end="")
+            else:
+                print(f"Unknown blob type '{blob_type.decode('utf-8')}'")
+                RuntimeError(f"Unknown blob type '{blob_type.decode('utf-8')}'")
+
+    elif args.cmd == "commit-tree":
+        print("kok")
+
+
+    elif args.cmd == "ls-tree":
         if sys.argv[2] == "--name-only" and len(sys.argv) > 2:
-            filepath = f".git/objects/{sys.argv[3][:2]}/{sys.argv[3][2:]}"
+            filepath = f".git/objects/{args.SHA[:2]}/{args.SHA[2:]}"
             if not os.path.exists(filepath):
-                print(f"Object '{sys.argv[3]}' does not exist")
-                RuntimeError(f"Object '{sys.argv[3]}' does not exist")
+                print(f"Object '{args.SHA}' does not exist")
+                RuntimeError(f"Object '{args.SHA}' does not exist")
             else:
                 decompressed = ReadZlib(filepath)
                 parts = decompressed.split(b"\x00")
                 blob_type = parts[0].split(b" ")[0]
                 if blob_type != b"tree":
-                    print(f"Object '{sys.argv[3]}' is not a tree")
-                    RuntimeError(f"Object '{sys.argv[3]}' is not a tree")
+                    print(f"Object '{args.SHA}' is not a tree")
+                    RuntimeError(f"Object '{args.SHA}' is not a tree")
 
                 data = decompressed.split(b"\x00", 1)[1]
                 parsed = []
@@ -132,13 +166,13 @@ def main():
                     data = data[split+21:]
                 for row in parsed: print(row[1].decode(), end="\n")
         else:
-            print(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
-            RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{command}'")
+            print(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{args.cmd}'")
+            RuntimeError(f"Paramater flag '{sys.argv[2]}' doesnt exist for '{args.cmd}'")
 
-    elif command == "write-tree":
+    elif args.cmd == "write-tree":
         print(''.join(format(x, '02x') for x in CreateTree(".")))            
 
-    elif command == "hash-object":
+    elif args.cmd == "hash-object":
         if sys.argv[2][0] == "-" and len(sys.argv) > 2:
             if sys.argv[2][1:] == "w":
                 hash = GetHash(open(sys.argv[3], "rb").read())
@@ -156,7 +190,7 @@ def main():
         else:
             print(GetHash(open(sys.argv[2], "r").read()))
     else:
-        raise RuntimeError(f"Unknown command '{command}'")
+        raise RuntimeError(f"Unknown command '{args.cmd}'")
 
 
 if __name__ == "__main__":
