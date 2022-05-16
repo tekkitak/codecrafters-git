@@ -143,9 +143,10 @@ def main():
         tdata = b"tree " + args.tree.encode() + b"\n"
         if args.parents:
             for parent in args.parents:
-                tdata += f"parent {parent}\n".encode()
+                tdata += f"parent {parent}\n".encode() # asd
         tdata += b"author penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n"
         tdata += b"committer penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n\n"
+        tdata += args.msg.encode()
         tdata = b"commit " + str(len(tdata)).encode() + b'\0' + tdata
         hash = sha1(tdata).hexdigest()
         if not os.path.exists(".git/objects/" + hash[:2]):
