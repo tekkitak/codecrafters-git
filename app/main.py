@@ -1,11 +1,12 @@
 from ast import arg, parse
 from dataclasses import dataclass
 from hashlib import sha1
-from string import hexdigits
 import sys
 import os
 import zlib
 import argparse as ap
+import time
+from math import floor
 
 def Parser():
     parser = ap.ArgumentParser(description="PyGit")
@@ -136,7 +137,25 @@ def main():
                 RuntimeError(f"Unknown blob type '{blob_type.decode('utf-8')}'")
 
     elif args.cmd == "commit-tree":
-        print("kok")
+        if not os.path.exists(f".git/objects/{args.tree[:2]}/{args.tree[2:]}"): 
+            print(f"Object '{args.tree}' does not exist")
+            RuntimeError(f"Object '{args.tree}' does not exist")
+        tdata = b"tree " + args.tree.encode() + b"\n"
+        if args.parents:
+            for parent in args.parents:
+                if not os.path.exists(f".git/refs/{parent}"):
+                    print(f"Object '{parent}' does not exist")
+                    RuntimeError(f"Object '{parent}' does not exist")
+                tdata += f"parent {parent}\n".encode()
+        tdata += b"author penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n"
+        tdata += b"committer penis <penis@balls.kok> "+ str(floor(time.time())).encode() + b" +0200\n\n"
+        tdata = b"commit " + str(len(tdata)).encode() + b'\0' + tdata
+        hash = sha1(tdata).hexdigest()
+        if not os.path.exists(".git/objects/" + hash[:2]):
+            os.mkdir(".git/objects/" + hash[:2])
+        with open(".git/objects/" + hash[:2] + "/" + hash[2:], "wb") as f:
+            f.write(zlib.compress(tdata))
+        print(hash)
 
 
     elif args.cmd == "ls-tree":
