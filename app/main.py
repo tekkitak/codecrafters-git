@@ -122,6 +122,7 @@ def main():
             print(f"Object '{args.SHA}' does not exist")
             RuntimeError(f"Object '{args.SHA}' does not exist")
         else:
+            print(filepath)
             decompressed = ReadZlib(filepath)
             parts = decompressed.split(b"\x00")
             blob_type = parts[0].split(b" ")[0]
